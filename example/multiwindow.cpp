@@ -1,6 +1,6 @@
 ﻿//-----------------------------------------------
-// example - triangle
-// Display a rotated triangle in a window.
+// example - multiwindow
+// Open two windows and display the rotated triangle in them.
 //
 // Usage:
 // F11    | Toggle fullscreen
@@ -8,8 +8,6 @@
 //-----------------------------------------------
 
 #include "glapp.hpp"
-
-constexpr const char* k_app_name = "triangle";
 
 void frame(glapp::window& window);
 void key(glapp::window& window, const std::string& key_name, const glapp::key_state& state, const glapp::modifier& modifier);
@@ -22,10 +20,16 @@ int main()
                              .set_opengl_profile(glapp::opengl_profile::core);
 
     // Create window and setup callbacks
-    glapp::window w(640, 640, k_app_name, options);
-    w.on_frame(frame);
-    w.on_key(key);
-    // w.set_swap_interval(1);
+
+    glapp::window w1(640, 640, "window 1", options);
+    w1.on_frame(frame);
+    w1.on_key(key);
+    w1.set_tag("1");
+
+    glapp::window w2(400, 400, "window 2", options);
+    w2.on_frame(frame);
+    w2.on_key(key);
+    w2.set_tag("2");
 
     // Start event loop
     glapp::run();
@@ -36,14 +40,13 @@ int main()
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <map>
 #include <sstream>
 
 void frame(glapp::window& window)
 {
     // No need to call makecurrent and swapbuffer in this callback
 
-    static auto last_time = std::chrono::high_resolution_clock::now();
-    static int64_t last_frame = 0;
     static const GLfloat vtx[] = {
         -0.866f, -0.5f,
         0.0f, 1.0f,
@@ -54,7 +57,14 @@ void frame(glapp::window& window)
         0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 1.0f
     };
+    static std::map<std::string, std::chrono::time_point<std::chrono::high_resolution_clock>> last_time;
+    static std::map<std::string, int64_t> last_frame;
+    static std::map<std::string, std::string> title_base;
+    const auto& tag = window.tag();
     if (window.frame_count() == 0) {
+        title_base[tag] = window.title();
+        last_frame[tag] = 0;
+        last_time[tag] = std::chrono::high_resolution_clock::now();
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glEnableClientState(GL_VERTEX_ARRAY);
         glEnableClientState(GL_COLOR_ARRAY);
@@ -73,15 +83,15 @@ void frame(glapp::window& window)
     glRotatef(-0.1f, 0.0f, 0.0f, 1.0f);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
-    double elapsed = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - last_time).count();
+    double elapsed = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - last_time[tag]).count();
     if (0.5 <= elapsed || window.frame_count() == 0) {
         std::stringstream title;
-        double fps = (window.frame_count() - last_frame) / elapsed;
-        last_time = std::chrono::high_resolution_clock::now();
-        last_frame = window.frame_count();
+        double fps = (window.frame_count() - last_frame[tag]) / elapsed;
+        last_time[tag] = std::chrono::high_resolution_clock::now();
+        last_frame[tag] = window.frame_count();
 
         // Show status on tile bar
-        title << k_app_name << " - ";
+        title << title_base[tag].c_str() << " - ";
         title << window.framebuffer_size().width() << " x " << window.framebuffer_size().height() << " | ";
         title << std::fixed << std::setprecision(2) << fps << " fps | ";
         title << std::fixed << std::setprecision(2) << (1000.0 / fps) << " ms";
