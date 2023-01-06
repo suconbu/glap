@@ -2,8 +2,11 @@
 
 #include "GLFW/glfw3.h"
 
+#include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <functional>
 #include <future>
 #include <iostream>
@@ -1162,7 +1165,7 @@ public:
         }
     }
 
-    cursor_mode cursor_mode() const
+    cursor_mode cursor_mode_() const
     {
         glapp::cursor_mode mode = cursor_mode::normal;
         if (handle_) {
@@ -1555,9 +1558,9 @@ private:
                 glfwSwapInterval(swap_interval_);
                 last_swap_interval_ = swap_interval_;
             }
+            glfwSwapBuffers(handle_->get());
             // Avoid crash when multi window
             glfwMakeContextCurrent(NULL);
-            glfwSwapBuffers(handle_->get());
             ++frame_count_;
         }
     }
@@ -1638,7 +1641,7 @@ private:
         {
         }
 
-        window_entry::~window_entry()
+        ~window_entry()
         {
             if (auto handle = handle_.lock()) {
                 if (glapp::window* window = get_window(handle)) {
@@ -1647,7 +1650,7 @@ private:
             }
         }
 
-        void window_entry::close()
+        void close()
         {
             if (auto handle = handle_.lock()) {
                 if (glapp::window* window = get_window(handle)) {
@@ -1656,7 +1659,7 @@ private:
             }
         }
 
-        bool window_entry::should_close() const
+        bool should_close() const
         {
             bool result = false;
             if (auto handle = handle_.lock()) {
@@ -1667,7 +1670,7 @@ private:
             return result;
         }
 
-        void window_entry::draw()
+        void draw()
         {
             // Require the std::weak_ptr::lock to be atomic operation (It is supported since C++14)
             if (auto handle = handle_.lock()) {
@@ -1686,7 +1689,7 @@ private:
 
     std::vector<std::shared_ptr<window_entry>> window_entries_;
     std::mutex mutex_;
-    std::atomic<bool> drawing_ = true;
+    std::atomic<bool> drawing_;
     bool use_drawing_thread_ = false;
 
 public:
@@ -1713,6 +1716,7 @@ public:
 
     void run(bool use_drawing_thread)
     {
+        drawing_ = true;
         std::future<void> drawloop_future;
         if (use_drawing_thread) {
             drawloop_future = std::async(std::launch::async, &app::drawloop, this);

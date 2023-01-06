@@ -10,7 +10,7 @@ int main()
     const auto options = glapp::window_options()
                              .set_opengl_api(glapp::opengl_api::opengl)
                              .set_opengl_version(1, 0)
-                             .set_msaa_samples(4);
+                             .set_opengl_profile(glapp::opengl_profile::core);
 
     // Create window and setup callbacks
     glapp::window w(640, 640, k_app_name, options);
@@ -27,7 +27,7 @@ int main()
 #include <chrono>
 #include <iomanip>
 #include <iostream>
-#include <strstream>
+#include <sstream>
 
 void frame(glapp::window& window)
 {

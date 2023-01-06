@@ -29,7 +29,7 @@ TEST_F(GlapTest, Basic)
     EXPECT_EQ(window.user_pointer(), nullptr);
     window.set_user_pointer(&var);
     EXPECT_EQ(window.user_pointer(), &var);
-    bool frame_count = 0;
+    int frame_count = 0;
     window.on_frame([&](const glapp::window&) {
         ++frame_count;
         glapp::exit();
