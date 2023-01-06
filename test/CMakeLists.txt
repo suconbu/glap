@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(glapp_test)
+project(test)
 
 enable_testing()
 
