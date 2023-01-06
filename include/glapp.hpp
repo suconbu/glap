@@ -702,7 +702,6 @@ public:
                 for (int i = 0; i < count; ++i) {
                     modes.push_back(glapp::monitor_mode(glfw_modes[i]));
                 }
-                modes;
             }
         } else {
         }
