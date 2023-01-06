@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.11)
 
-option(GLAPP_BUILD_EXAMPLES "Build the examples" ON)
-option(GLAPP_BUILD_TESTS "Build the test programs" OFF)
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(GLAPP_STANDALONE TRUE)
+endif()
+
+option(GLAPP_BUILD_EXAMPLES "Build the examples" ${GLAPP_STANDALONE})
+option(GLAPP_BUILD_TESTS "Build the test programs" ${GLAPP_STANDALONE})
 
 set(CMAKE_CXX_STANDARD 11)
 
