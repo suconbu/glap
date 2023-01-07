@@ -565,22 +565,20 @@ class monitor {
     friend class window;
 
 private:
-    std::weak_ptr<internal::glfw_monitor_handle> weakref_;
+    std::shared_ptr<internal::glfw_monitor_handle> handle_;
 
 public:
     monitor() = default;
 
-    operator bool() const { return !weakref_.expired(); }
-
-    GLFWmonitor* glfw_handle() const
+    static const monitor& empty_instance()
     {
-        GLFWmonitor* glfw_handle {};
-        if (auto handle = weakref_.lock()) {
-            glfw_handle = handle->get();
-        } else {
-        }
-        return glfw_handle;
+        static const monitor monitor {};
+        return monitor;
     }
+
+    operator bool() const { return handle_ && *handle_; }
+
+    GLFWmonitor* glfw_handle() const { return handle_ ? handle_->get() : nullptr; }
 
     std::string to_string() const
     {
@@ -600,9 +598,8 @@ public:
     std::string name() const
     {
         std::string name {};
-        if (auto handle = weakref_.lock()) {
-            name = glfwGetMonitorName(handle->get());
-        } else {
+        if (handle_) {
+            name = glfwGetMonitorName(handle_->get());
         }
         return name;
     }
@@ -611,13 +608,12 @@ public:
     glapp::rect<int32_t> rect() const
     {
         glapp::rect<int32_t> rect {};
-        if (auto handle = weakref_.lock()) {
+        if (handle_) {
             int xpos {};
             int ypos {};
-            glfwGetMonitorPos(handle->get(), &xpos, &ypos);
+            glfwGetMonitorPos(handle_->get(), &xpos, &ypos);
             const auto mode = current_mode();
             rect = { xpos, ypos, mode.width(), mode.height() };
-        } else {
         }
         return rect;
     }
@@ -627,14 +623,13 @@ public:
     glapp::rect<int32_t> workarea_rect() const
     {
         glapp::rect<int32_t> rect {};
-        if (auto handle = weakref_.lock()) {
+        if (handle_) {
             int xpos {};
             int ypos {};
             int width {};
             int height {};
-            glfwGetMonitorWorkarea(handle->get(), &xpos, &ypos, &width, &height);
+            glfwGetMonitorWorkarea(handle_->get(), &xpos, &ypos, &width, &height);
             rect = { xpos, ypos, width, height };
-        } else {
         }
         return rect;
     }
@@ -655,12 +650,11 @@ public:
     glapp::size<int32_t> pysical_size() const
     {
         glapp::size<int32_t> size {};
-        if (auto handle = weakref_.lock()) {
+        if (handle_) {
             int width {};
             int height {};
-            glfwGetMonitorPhysicalSize(handle->get(), &width, &height);
+            glfwGetMonitorPhysicalSize(handle_->get(), &width, &height);
             size = { width, height };
-        } else {
         }
         return size;
     }
@@ -668,12 +662,11 @@ public:
     glapp::size<float> content_scale() const
     {
         glapp::size<float> scale {};
-        if (auto handle = weakref_.lock()) {
+        if (handle_) {
             float xscale {};
             float yscale {};
-            glfwGetMonitorContentScale(handle->get(), &xscale, &yscale);
+            glfwGetMonitorContentScale(handle_->get(), &xscale, &yscale);
             scale = { xscale, yscale };
-        } else {
         }
         return scale;
     }
@@ -681,12 +674,11 @@ public:
     glapp::monitor_mode current_mode() const
     {
         glapp::monitor_mode mode {};
-        if (auto handle = weakref_.lock()) {
-            auto glfw_mode = glfwGetVideoMode(handle->get());
+        if (handle_) {
+            auto glfw_mode = glfwGetVideoMode(handle_->get());
             if (glfw_mode != nullptr) {
                 mode = glapp::monitor_mode(*glfw_mode);
             }
-        } else {
         }
         return mode;
     }
@@ -694,54 +686,53 @@ public:
     std::vector<glapp::monitor_mode> supported_modes() const
     {
         std::vector<glapp::monitor_mode> modes {};
-        if (auto handle = weakref_.lock()) {
+        if (handle_) {
             int count {};
-            auto glfw_modes = glfwGetVideoModes(handle->get(), &count);
+            auto glfw_modes = glfwGetVideoModes(handle_->get(), &count);
             if (glfw_modes != nullptr) {
                 modes.reserve(count);
                 for (int i = 0; i < count; ++i) {
                     modes.push_back(glapp::monitor_mode(glfw_modes[i]));
                 }
             }
-        } else {
         }
         return modes;
     }
 
     void set_user_pointer(void* pointer)
     {
-        if (auto handle = weakref_.lock()) {
-            glfwSetMonitorUserPointer(handle->get(), pointer);
-        } else {
+        if (handle_) {
+            glfwSetMonitorUserPointer(handle_->get(), pointer);
         }
     }
     void* user_pointer() const
     {
         void* pointer {};
-        if (auto handle = weakref_.lock()) {
-            pointer = glfwGetMonitorUserPointer(handle->get());
-        } else {
+        if (handle_) {
+            pointer = glfwGetMonitorUserPointer(handle_->get());
         }
         return pointer;
     }
 
 private:
-    monitor(std::shared_ptr<internal::glfw_monitor_handle> handle)
-        : weakref_(handle)
+    monitor(GLFWmonitor* glfw_monitor)
+        : handle_(std::make_shared<internal::glfw_monitor_handle>(glfw_monitor, nullptr))
     {
     }
 
-    static const monitor& empty_instance()
+    void destroy()
     {
-        static const monitor monitor {};
-        return monitor;
+        if (handle_) {
+            handle_.reset();
+        }
     }
 };
 
 namespace internal {
     class monitor_manager {
     private:
-        std::unordered_map<GLFWmonitor*, std::shared_ptr<glfw_monitor_handle>> handles_;
+        std::unordered_map<GLFWmonitor*, std::shared_ptr<glapp::monitor>> monitors_;
+        // std::unordered_map<GLFWmonitor*, std::shared_ptr<glfw_monitor_handle>> handles_;
 
     public:
         static monitor_manager& instance()
@@ -750,26 +741,26 @@ namespace internal {
             return instance;
         }
 
-        monitor primary_monitor()
+        std::shared_ptr<monitor> primary_monitor()
         {
             auto glfw_monitor = glfwGetPrimaryMonitor();
-            auto iter = handles_.find(glfw_monitor);
-            if (iter != handles_.end()) {
+            auto iter = monitors_.find(glfw_monitor);
+            if (iter != monitors_.end()) {
                 // Create a reference instances
-                return monitor(iter->second);
+                return iter->second;
             } else {
                 return {};
             }
         }
 
-        std::vector<glapp::monitor> monitors() const
+        std::vector<std::shared_ptr<monitor>> monitors() const
         {
-            std::vector<glapp::monitor> monitors;
-            // Create the reference instances
-            for (auto&& handle : handles_) {
-                monitors.push_back(glapp::monitor(handle.second));
+            std::vector<std::shared_ptr<glapp::monitor>> monitors;
+            for (auto&& monitor : monitors_) {
+                monitors.push_back(monitor.second);
             }
             return monitors;
+            // return std::vector<std::shared_ptr<monitor>>(monitors_.begin(), monitors_.end());
         }
 
     private:
@@ -778,10 +769,16 @@ namespace internal {
         static void glfw_monitor_callback(GLFWmonitor* glfw_monitor, int event)
         {
             auto& manager = instance();
+            auto iter = manager.monitors_.find(glfw_monitor);
+            if (iter != manager.monitors_.end()) {
+                iter->second->destroy();
+                manager.monitors_.erase(iter);
+            }
+
             if (event == GLFW_CONNECTED) {
-                manager.handles_[glfw_monitor] = std::make_shared<glfw_monitor_handle>(glfw_monitor, nullptr);
+                manager.monitors_[glfw_monitor] = std::shared_ptr<glapp::monitor>(new glapp::monitor(glfw_monitor)); // std::make_shared<glfw_monitor_handle>(glfw_monitor, nullptr);
             } else if (event == GLFW_DISCONNECTED) {
-                manager.handles_.erase(glfw_monitor);
+                // Nothing to do
             } else {
             }
         }
@@ -852,10 +849,9 @@ private:
     std::weak_ptr<window> weakref_;
 
 public:
-    window(int32_t width, int32_t height, const char* title, const window_options& options = {});
-    window(int32_t width, int32_t height, const char* title, const glapp::monitor& monitor, const window_options& options = {});
+    window() = delete;
 
-    operator bool() const { return static_cast<bool>(handle_); }
+    operator bool() const { return handle_ && *handle_; }
 
     GLFWwindow* glfw_handle() const { return handle_ ? handle_->get() : nullptr; }
 
@@ -1057,7 +1053,7 @@ public:
     }
 
     // Make the window full screen on the specified monitor
-    void fullscreen(const glapp::monitor& monitor)
+    void fullscreen(const std::shared_ptr<glapp::monitor> monitor)
     {
         fullscreen_internal(monitor);
     }
@@ -1084,7 +1080,7 @@ public:
     }
 
     // Returns the monitor on which the window is currently placed
-    glapp::monitor placed_monitor() const
+    std::shared_ptr<glapp::monitor> placed_monitor() const
     {
         return placed_monitor_internal();
     }
@@ -1287,6 +1283,55 @@ public:
     // clang-format on
 
 private:
+    window(int32_t width, int32_t height, const char* title, const std::shared_ptr<glapp::monitor> monitor, const window_options& options)
+    {
+        glapp::window_options actual_options = options;
+        GLFWwindow* glfw_window = nullptr;
+        if (monitor) {
+            const auto& mode = monitor->current_mode();
+            actual_options.set_framebuffer_red_bits(mode.red_bits());
+            actual_options.set_framebuffer_green_bits(mode.green_bits());
+            actual_options.set_framebuffer_blue_bits(mode.blue_bits());
+            actual_options.set_refresh_rate(mode.refresh_rate());
+            actual_options.apply();
+            (void)width;
+            (void)height;
+            glfw_window = glfwCreateWindow(mode.width(), mode.height(), title_.c_str(), monitor->glfw_handle(), NULL);
+        } else {
+            options.apply();
+            glfw_window = glfwCreateWindow(width, height, title_.c_str(), NULL, NULL);
+        }
+
+        if (glfw_window == nullptr) {
+            return;
+        }
+
+        auto destroy_callback = [](GLFWwindow* glfw_window) {
+            glfwDestroyWindow(glfw_window);
+        };
+        handle_ = std::make_shared<internal::glfw_window_handle>(glfw_window, destroy_callback);
+        if (!handle_) {
+            glfwDestroyWindow(glfw_window);
+            return;
+        }
+
+        glfwSetWindowUserPointer(glfw_window, this);
+        setup_callbacks(glfw_window);
+
+        if (state_internal() == glapp::window_state::normal) {
+            normal_window_rect_ = current_window_rect();
+        } else {
+            const auto monitor = placed_monitor_internal();
+            assert(monitor);
+            const auto rect = monitor->rect();
+            normal_window_rect_ = glapp::rect<int32_t>(
+                rect.left() + rect.width() / 4,
+                rect.top() + rect.height() / 4,
+                rect.width() / 2,
+                rect.height() / 2);
+        }
+    }
+
     void destroy()
     {
         if (handle_) {
@@ -1328,9 +1373,9 @@ private:
         }
     }
 
-    void fullscreen_internal(const glapp::monitor& monitor)
+    void fullscreen_internal(const std::shared_ptr<glapp::monitor> monitor)
     {
-        if (handle_) {
+        if (handle_ && monitor) {
             auto current_state = state_internal();
             if (current_state == window_state::minimized && glfwGetWindowMonitor(handle_->get()) != nullptr) {
                 glfwRestoreWindow(handle_->get());
@@ -1340,7 +1385,7 @@ private:
                 } else {
                     fullscreen_backup_window_rect_ = normal_window_rect_;
                 }
-                glfwSetWindowMonitor(handle_->get(), monitor.glfw_handle(), 0, 0, monitor.rect().width(), monitor.rect().height(), monitor.refresh_rate());
+                glfwSetWindowMonitor(handle_->get(), monitor->glfw_handle(), 0, 0, monitor->rect().width(), monitor->rect().height(), monitor->refresh_rate());
                 window_state_event(*this, window_state::fullscreen);
             } else {
             }
@@ -1348,15 +1393,15 @@ private:
     }
 
     // Returns the monitor on which the window is currently placed
-    glapp::monitor placed_monitor_internal() const
+    std::shared_ptr<glapp::monitor> placed_monitor_internal() const
     {
         int32_t i = 0;
         int32_t max_area = 0;
-        int32_t max_index = 0;
+        int32_t max_index = -1;
         auto monitors = internal::monitor_manager::instance().monitors();
         for (auto&& monitor : monitors) {
             auto wrect = glapp::rect<int32_t>(pos(), size());
-            auto mrect = monitor.rect();
+            auto mrect = monitor->rect();
             int32_t dx = (std::min)(wrect.right(), mrect.right()) - (std::max)(wrect.left(), mrect.left());
             int32_t dy = (std::min)(wrect.bottom(), mrect.bottom()) - (std::max)(wrect.top(), mrect.top());
             if (0 < dx && 0 < dy) {
@@ -1368,7 +1413,7 @@ private:
             }
             ++i;
         }
-        return monitors[max_index];
+        return (0 <= max_index) ? monitors[max_index] : nullptr;
     }
 
     static void setup_callbacks(GLFWwindow* glfw_window)
@@ -1628,66 +1673,8 @@ class app {
     friend window;
 
 private:
-    class window_entry {
-    private:
-        std::weak_ptr<internal::glfw_window_handle> handle_;
-
-    public:
-        window_entry() = delete;
-
-        window_entry(std::shared_ptr<internal::glfw_window_handle> glfw_handle)
-            : handle_(glfw_handle)
-        {
-        }
-
-        ~window_entry()
-        {
-            if (auto handle = handle_.lock()) {
-                if (glapp::window* window = get_window(handle)) {
-                    window->destroy();
-                }
-            }
-        }
-
-        void close()
-        {
-            if (auto handle = handle_.lock()) {
-                if (glapp::window* window = get_window(handle)) {
-                    window->close();
-                }
-            }
-        }
-
-        bool should_close() const
-        {
-            bool result = false;
-            if (auto handle = handle_.lock()) {
-                if (glapp::window* window = get_window(handle)) {
-                    result = window->should_close();
-                }
-            }
-            return result;
-        }
-
-        void draw()
-        {
-            // Require the std::weak_ptr::lock to be atomic operation (It is supported since C++14)
-            if (auto handle = handle_.lock()) {
-                if (glapp::window* window = get_window(handle)) {
-                    window->draw();
-                }
-            }
-        }
-
-    private:
-        static window* get_window(std::shared_ptr<internal::glfw_window_handle> handle)
-        {
-            return handle ? reinterpret_cast<window*>(glfwGetWindowUserPointer(handle->get())) : nullptr;
-        }
-    };
-
-    std::vector<std::shared_ptr<window_entry>> window_entries_;
     std::mutex mutex_;
+    std::vector<std::shared_ptr<glapp::window>> windows_;
     std::atomic<bool> drawing_;
     bool use_drawing_thread_ = false;
 
@@ -1708,19 +1695,21 @@ public:
         error::set_callback(std::forward<decltype(callback)>(callback));
     }
 
-    ~app()
+    std::shared_ptr<glapp::window> add_window(int32_t width, int32_t height, const char* title, const std::shared_ptr<glapp::monitor> monitor, const window_options& options = {})
     {
-        glfwTerminate();
+        std::lock_guard<std::mutex> lock(mutex_);
+        windows_.emplace_back(std::shared_ptr<glapp::window>(new glapp::window(width, height, title, monitor, options)));
+        return windows_.back();
     }
 
-    void run(bool use_drawing_thread)
+    int32_t run(bool use_drawing_thread)
     {
         drawing_ = true;
         std::future<void> drawloop_future;
         if (use_drawing_thread) {
             drawloop_future = std::async(std::launch::async, &app::drawloop, this);
         }
-        while (!window_entries_.empty()) {
+        while (!windows_.empty()) {
             if (use_drawing_thread) {
                 glfwWaitEvents();
             } else {
@@ -1728,26 +1717,33 @@ public:
                 glfwPollEvents();
             }
 
+            // Destroy and remove closed window
             std::lock_guard<std::mutex> lock(mutex_);
+            std::for_each(windows_.begin(), windows_.end(), [](std::shared_ptr<glapp::window> window) {
+                if (window->should_close()) {
+                    window->destroy();
+                }
+            });
             // Erase remove idiom
-            window_entries_.erase(
+            windows_.erase(
                 std::remove_if(
-                    window_entries_.begin(),
-                    window_entries_.end(),
-                    [](std::shared_ptr<window_entry> entry) { return entry->should_close(); }),
-                window_entries_.end());
+                    windows_.begin(),
+                    windows_.end(),
+                    [](std::shared_ptr<glapp::window> window) { return !(window && *window); }),
+                windows_.end());
         }
         drawing_ = false;
+        glfwTerminate();
+        return 0;
         // Blocked until drawloop is finished by destructor of 'drawloop_future'
     }
 
     void exit()
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        for (auto& entry : window_entries_) {
-            entry->close();
+        for (auto&& window : windows_) {
+            window->close();
         }
-        window_entries_.clear();
     }
 
 private:
@@ -1760,12 +1756,6 @@ private:
         return instance;
     }
 
-    void add_window(std::shared_ptr<internal::glfw_window_handle> handle)
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        window_entries_.emplace_back(std::make_shared<window_entry>(handle));
-    }
-
     void drawloop()
     {
         while (drawing_) {
@@ -1776,25 +1766,44 @@ private:
 
     void draw_windows()
     {
-        std::vector<std::shared_ptr<window_entry>> entries;
+        std::vector<std::shared_ptr<glapp::window>> windows;
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            for (auto& entry : window_entries_) {
-                entries.push_back(entry);
+            for (auto&& window : windows_) {
+                windows.push_back(window);
             }
         }
-        for (auto& entry : entries) {
-            entry->draw();
+        for (auto&& window : windows) {
+            window->draw();
         }
     }
 };
 
-// Start event loop
-void run(bool use_drawing_thread = false)
+std::shared_ptr<glapp::window> add_window(int32_t width, int32_t height, const char* title, const window_options& options = {})
 {
+    std::shared_ptr<glapp::window> window;
     if (auto app = app::get()) {
-        app->run(use_drawing_thread);
+        return app->add_window(width, height, title, nullptr, options);
     }
+    return window;
+}
+std::shared_ptr<glapp::window> add_window(int32_t width, int32_t height, const char* title, const std::shared_ptr<glapp::monitor> monitor, const window_options& options = {})
+{
+    std::shared_ptr<glapp::window> window;
+    if (auto app = app::get()) {
+        window = app->add_window(width, height, title, monitor, options);
+    }
+    return window;
+}
+
+// Start event loop
+int32_t run(bool use_drawing_thread = false)
+{
+    int32_t ret = 1;
+    if (auto app = app::get()) {
+        ret = app->run(use_drawing_thread);
+    }
+    return ret;
 }
 
 // Close all existing windows, then exit the glapp::run()
@@ -1847,21 +1856,15 @@ double get_time()
 }
 
 // Returns primary monitor from the connected monitors
-glapp::monitor primary_monitor()
+std::shared_ptr<glapp::monitor> primary_monitor()
 {
-    glapp::monitor monitor = internal::monitor_manager::instance().primary_monitor();
-    return monitor;
+    return internal::monitor_manager::instance().primary_monitor();
 }
 
 // Returns connected monitors
-std::vector<glapp::monitor> get_monitors()
+std::vector<std::shared_ptr<glapp::monitor>> get_monitors()
 {
-    auto monitors = internal::monitor_manager::instance().monitors();
-    {
-        for (auto&& monitor : monitors) {
-        }
-    }
-    return monitors;
+    return internal::monitor_manager::instance().monitors();
 }
 
 // Implementating member functions
@@ -1874,67 +1877,9 @@ inline internal::monitor_manager::monitor_manager()
 
     int count = 0;
     auto glfw_monitors = glfwGetMonitors(&count);
+    assert(0 < count);
     for (int i = 0; i < count; ++i) {
-        handles_[glfw_monitors[i]] = std::make_shared<glfw_monitor_handle>(glfw_monitors[i], nullptr);
-    }
-}
-
-inline window::window(int32_t width, int32_t height, const char* title, const window_options& options)
-    : window(width, height, title, glapp::monitor::empty_instance(), options)
-{
-}
-
-inline window::window(int32_t width, int32_t height, const char* title, const glapp::monitor& monitor, const window_options& options)
-    : title_(internal::or_empty(title))
-{
-    auto app = app::get();
-    if (!app) {
-        return;
-    }
-
-    glapp::window_options actual_options = options;
-    GLFWwindow* glfw_window = nullptr;
-    if (monitor) {
-        const auto& mode = monitor.current_mode();
-        actual_options.set_framebuffer_red_bits(mode.red_bits());
-        actual_options.set_framebuffer_green_bits(mode.green_bits());
-        actual_options.set_framebuffer_blue_bits(mode.blue_bits());
-        actual_options.set_refresh_rate(mode.refresh_rate());
-        actual_options.apply();
-        (void)width;
-        (void)height;
-        glfw_window = glfwCreateWindow(mode.width(), mode.height(), title_.c_str(), monitor.glfw_handle(), NULL);
-    } else {
-        options.apply();
-        glfw_window = glfwCreateWindow(width, height, title_.c_str(), NULL, NULL);
-    }
-
-    if (glfw_window == nullptr) {
-        return;
-    }
-
-    auto destroy_callback = [](GLFWwindow* glfw_window) {
-        glfwDestroyWindow(glfw_window);
-    };
-    handle_ = std::make_shared<internal::glfw_window_handle>(glfw_window, destroy_callback);
-    if (!handle_) {
-        glfwDestroyWindow(glfw_window);
-        return;
-    }
-    app->add_window(handle_);
-
-    glfwSetWindowUserPointer(glfw_window, this);
-    setup_callbacks(glfw_window);
-
-    if (state_internal() == glapp::window_state::normal) {
-        normal_window_rect_ = current_window_rect();
-    } else {
-        const auto rect = placed_monitor_internal().rect();
-        normal_window_rect_ = glapp::rect<int32_t>(
-            rect.left() + rect.width() / 4,
-            rect.top() + rect.height() / 4,
-            rect.width() / 2,
-            rect.height() / 2);
+        monitors_[glfw_monitors[i]] = std::shared_ptr<glapp::monitor>(new glapp::monitor(glfw_monitors[i]));
     }
 }
 

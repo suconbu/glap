@@ -10,8 +10,8 @@ This library for easily creating OpenGL application.
 int main()
 {
     // Create window and setup callbacks
-    glapp::window w(400, 300, "example");
-    w.on_frame([](glapp::window& window){
+    auto w = glapp::add_window(400, 300, "example");
+    w->on_frame([](glapp::window& window){
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         int32_t w = window.framebuffer_size().width();
@@ -21,15 +21,14 @@ int main()
     });
 
     // Start event loop
-    glapp::run();
-
-    return 0;
+    return glapp::run();
 }
 ```
 
 ## Dependencies
 
-* [GLFW](https://github.com/glfw/glfw) is backend library
+* [GLFW](https://github.com/glfw/glfw) is backend library  
+If it is not installed in the environment, it will be get the source code and build automatically.
 
 ## License
 

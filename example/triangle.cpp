@@ -22,15 +22,13 @@ int main()
                              .set_opengl_profile(glapp::opengl_profile::core);
 
     // Create window and setup callbacks
-    glapp::window w(640, 640, k_app_name, options);
-    w.on_frame(frame);
-    w.on_key(key);
-    // w.set_swap_interval(1);
+    auto w = glapp::add_window(640, 640, k_app_name, options);
+    w->on_frame(frame);
+    w->on_key(key);
+    // w->set_swap_interval(1);
 
     // Start event loop
-    glapp::run();
-
-    return 0;
+    return glapp::run();
 }
 
 #include <chrono>

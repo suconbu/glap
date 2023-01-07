@@ -7,13 +7,14 @@ endif()
 option(GLAPP_BUILD_EXAMPLES "Build the examples" ${GLAPP_STANDALONE})
 option(GLAPP_BUILD_TESTS "Build the test programs" ${GLAPP_STANDALONE})
 
-set(CMAKE_CXX_STANDARD 11)
-
 project(glapp CXX)
 
 add_library(${PROJECT_NAME} INTERFACE)
 
 target_link_libraries(${PROJECT_NAME} INTERFACE glfw)
+
+target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_11)
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_EXTENSIONS OFF)
 
 add_subdirectory(include)
 if(GLAPP_BUILD_EXAMPLES)

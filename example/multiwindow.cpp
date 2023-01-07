@@ -21,20 +21,20 @@ int main()
 
     // Create window and setup callbacks
 
-    glapp::window w1(640, 640, "window 1", options);
-    w1.on_frame(frame);
-    w1.on_key(key);
-    w1.set_tag("1");
+    auto w1 = glapp::add_window(640, 640, "window 1", options);
+    w1->on_frame(frame);
+    w1->on_key(key);
+    w1->set_tag("1");
 
-    glapp::window w2(400, 400, "window 2", options);
-    w2.on_frame(frame);
-    w2.on_key(key);
-    w2.set_tag("2");
+    auto w2 = glapp::add_window(400, 400, "window 2", options);
+    w2->on_frame(frame);
+    w2->on_key(key);
+    w2->set_tag("2");
+
+    auto monitors = glapp::get_monitors();
 
     // Start event loop
-    glapp::run();
-
-    return 0;
+    return glapp::run();
 }
 
 #include <chrono>
