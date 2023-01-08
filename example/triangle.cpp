@@ -16,19 +16,21 @@ void key(glapp::window& window, const std::string& key_name, const glapp::key_st
 
 int main()
 {
+    auto app = glapp::get();
+
     const auto options = glapp::window_options()
                              .set_opengl_api(glapp::opengl_api::opengl)
                              .set_opengl_version(1, 0)
                              .set_opengl_profile(glapp::opengl_profile::core);
 
     // Create window and setup callbacks
-    auto w = glapp::add_window(640, 640, k_app_name, options);
+    auto w = app->add_window(640, 640, k_app_name, options);
     w->on_frame(frame);
     w->on_key(key);
     // w->set_swap_interval(1);
 
     // Start event loop
-    return glapp::run();
+    return app->run();
 }
 
 #include <chrono>

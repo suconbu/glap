@@ -9,8 +9,11 @@ This library for easily creating OpenGL application.
 
 int main()
 {
+    // Get glapp instance
+    auto app = glapp::get();
+
     // Create window and setup callbacks
-    auto w = glapp::add_window(400, 300, "example");
+    auto w = app->add_window(400, 300, "example");
     w->on_frame([](glapp::window& window){
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -21,7 +24,7 @@ int main()
     });
 
     // Start event loop
-    return glapp::run();
+    return app->run();
 }
 ```
 

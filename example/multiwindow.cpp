@@ -14,6 +14,8 @@ void key(glapp::window& window, const std::string& key_name, const glapp::key_st
 
 int main()
 {
+    auto app = glapp::get();
+
     const auto options = glapp::window_options()
                              .set_opengl_api(glapp::opengl_api::opengl)
                              .set_opengl_version(1, 0)
@@ -21,20 +23,18 @@ int main()
 
     // Create window and setup callbacks
 
-    auto w1 = glapp::add_window(640, 640, "window 1", options);
+    auto w1 = app->add_window(640, 640, "window 1", options);
     w1->on_frame(frame);
     w1->on_key(key);
     w1->set_tag("1");
 
-    auto w2 = glapp::add_window(400, 400, "window 2", options);
+    auto w2 = app->add_window(400, 400, "window 2", options);
     w2->on_frame(frame);
     w2->on_key(key);
     w2->set_tag("2");
 
-    auto monitors = glapp::get_monitors();
-
     // Start event loop
-    return glapp::run();
+    return app->run();
 }
 
 #include <chrono>

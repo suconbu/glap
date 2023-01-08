@@ -8,13 +8,13 @@ class GlapTest : public ::testing::Test {
     }
     virtual void TearDown()
     {
-        glapp::exit();
     }
 };
 
 TEST_F(GlapTest, Basic)
 {
-    auto w = glapp::add_window(640, 480, "Hello glapp");
+    auto app = glapp::get();
+    auto w = app->add_window(640, 480, "Hello glapp");
     EXPECT_TRUE(*w);
     EXPECT_EQ(w->size().width(), 640);
     EXPECT_EQ(w->size().height(), 480);
@@ -32,43 +32,48 @@ TEST_F(GlapTest, Basic)
     int frame_count = 0;
     w->on_frame([&](const glapp::window&) {
         ++frame_count;
-        glapp::exit();
+        app->exit();
     });
-    glapp::run();
+    app->run();
     EXPECT_EQ(frame_count, 1);
     EXPECT_EQ(w->size().width(), 0);
 }
 
 TEST_F(GlapTest, Get)
 {
-    auto w = glapp::add_window(640, 480, nullptr);
-    w->on_frame([](glapp::window& window) {
-        EXPECT_TRUE(glapp::has_extension("GL_ARB_gl_spirv"));
-        EXPECT_FALSE(glapp::has_extension("GL_SPIR_V_BINARY_ARB"));
-        EXPECT_FALSE(glapp::has_extension("glSpecializeShaderARB"));
+    auto app = glapp::get();
+    auto w = app->add_window(640, 480, nullptr);
+    w->on_frame([&app](glapp::window& window) {
+        EXPECT_TRUE(app->has_extension("GL_ARB_gl_spirv"));
+        EXPECT_FALSE(app->has_extension("GL_SPIR_V_BINARY_ARB"));
+        EXPECT_FALSE(app->has_extension("glSpecializeShaderARB"));
 
-        EXPECT_EQ(glapp::get_proc("GL_ARB_gl_spirv"), nullptr);
-        EXPECT_EQ(glapp::get_proc("GL_SPIR_V_BINARY_ARB"), nullptr);
-        EXPECT_NE(glapp::get_proc("glSpecializeShaderARB"), nullptr);
+        EXPECT_EQ(app->get_proc("GL_ARB_gl_spirv"), nullptr);
+        EXPECT_EQ(app->get_proc("GL_SPIR_V_BINARY_ARB"), nullptr);
+        EXPECT_NE(app->get_proc("glSpecializeShaderARB"), nullptr);
 
-        EXPECT_LT(glapp::get_time(), 50.0);
-        glapp::set_time(100.0);
-        EXPECT_GE(glapp::get_time(), 100.0);
-        EXPECT_LT(glapp::get_time(), 200.0);
+        EXPECT_LT(app->get_time(), 50.0);
+        app->set_time(100.0);
+        EXPECT_GE(app->get_time(), 100.0);
+        EXPECT_LT(app->get_time(), 200.0);
 
         window.set_clipboard_string("glapp");
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
         EXPECT_STREQ(window.clipboard_string().c_str(), "glapp");
+
         window.set_clipboard_string("");
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
         EXPECT_STREQ(window.clipboard_string().c_str(), "");
 
-        glapp::exit();
+        app->exit();
     });
-    glapp::run();
+    app->run();
 }
 
 TEST_F(GlapTest, Input)
 {
-    auto w = glapp::add_window(640, 480, nullptr);
+    auto app = glapp::get();
+    auto w = app->add_window(640, 480, nullptr);
     w->set_cursor_pos(100.0, 200.0);
     EXPECT_EQ(w->cursor_pos_x(), 100.0);
     EXPECT_EQ(w->cursor_pos_y(), 200.0);
@@ -76,32 +81,34 @@ TEST_F(GlapTest, Input)
 
 TEST_F(GlapTest, Error)
 {
-    auto error1 = glapp::get_last_error();
+    auto app = glapp::get();
+    auto error1 = app->last_error();
     EXPECT_EQ(error1.code(), GLFW_NO_ERROR);
     EXPECT_STREQ(error1.description().c_str(), "");
 
-    glapp::on_error([](const glapp::error& error) {
+    app->on_error([](const glapp::error& error) {
         EXPECT_EQ(error.code(), GLFW_INVALID_VALUE);
         EXPECT_STREQ(error.description().c_str(), "Invalid window size 0x0");
     });
-    (void)glapp::add_window(0, 0, nullptr);
-    auto error2 = glapp::get_last_error();
+    (void)app->add_window(0, 0, nullptr);
+    auto error2 = app->last_error();
     EXPECT_EQ(error2.code(), GLFW_INVALID_VALUE);
     EXPECT_STREQ(error2.description().c_str(), "Invalid window size 0x0");
 
-    glapp::on_error([](const glapp::error& error) {
+    app->on_error([](const glapp::error& error) {
         EXPECT_EQ(error.code(), GLFW_INVALID_VALUE);
         EXPECT_STREQ(error.description().c_str(), "Invalid OpenGL version 0.0");
     });
-    (void)glapp::add_window(100, 100, nullptr, glapp::window_options().set_opengl_version(0, 0));
-    auto error3 = glapp::get_last_error();
+    (void)app->add_window(100, 100, nullptr, glapp::window_options().set_opengl_version(0, 0));
+    auto error3 = app->last_error();
     EXPECT_EQ(error3.code(), GLFW_INVALID_VALUE);
     EXPECT_STREQ(error3.description().c_str(), "Invalid OpenGL version 0.0");
 }
 
 TEST_F(GlapTest, WindowCallback)
 {
-    auto w = glapp::add_window(640, 480, "Hello glapp");
+    auto app = glapp::get();
+    auto w = app->add_window(640, 480, "Hello glapp");
     EXPECT_TRUE(*w);
 
     int draw_count = 0;
@@ -175,7 +182,7 @@ TEST_F(GlapTest, WindowCallback)
         ++window_close_count;
     });
 
-    glapp::run();
+    app->run();
 
     EXPECT_EQ(draw_count, 1);
     EXPECT_EQ(window_pos_xpos, 200);
@@ -195,8 +202,9 @@ TEST_F(GlapTest, WindowCallback)
 
 TEST_F(GlapTest, WindowStateFromNormal)
 {
+    auto app = glapp::get();
     const glapp::size<int32_t> normal_size(640, 480);
-    auto w = glapp::add_window(normal_size.width(), normal_size.height(), nullptr);
+    auto w = app->add_window(normal_size.width(), normal_size.height(), nullptr);
     const auto monitor = w->placed_monitor();
     ASSERT_TRUE(monitor);
     const auto monitor_rect = monitor->rect();
@@ -248,8 +256,9 @@ TEST_F(GlapTest, WindowStateFromNormal)
 
 TEST_F(GlapTest, WindowStateFromMaximized)
 {
+    auto app = glapp::get();
     const glapp::size<int32_t> normal_size(640, 480);
-    auto w = glapp::add_window(normal_size.width(), normal_size.height(), nullptr);
+    auto w = app->add_window(normal_size.width(), normal_size.height(), nullptr);
     const auto monitor = w->placed_monitor();
     ASSERT_TRUE(monitor);
     const auto monitor_rect = monitor->rect();
@@ -298,7 +307,8 @@ TEST_F(GlapTest, WindowStateFromMaximized)
 
 TEST_F(GlapTest, WindowSizeLimit)
 {
-    auto w = glapp::add_window(640, 480, nullptr);
+    auto app = glapp::get();
+    auto w = app->add_window(640, 480, nullptr);
     w->set_size_limit_min(300, 200);
     w->set_size(250, 250);
     EXPECT_EQ(w->size().width(), 300);
@@ -326,7 +336,8 @@ TEST_F(GlapTest, WindowSizeLimit)
 
 TEST_F(GlapTest, WindowSizeAspectRatio)
 {
-    auto w = glapp::add_window(600, 600, nullptr);
+    auto app = glapp::get();
+    auto w = app->add_window(600, 600, nullptr);
     w->set_aspect_ratio(3, 2);
     EXPECT_EQ(w->size().width(), 600);
     EXPECT_EQ(w->size().height(), 400);
