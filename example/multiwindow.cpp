@@ -59,10 +59,8 @@ void frame(glapp::window& window)
     };
     static std::map<std::string, std::chrono::time_point<std::chrono::high_resolution_clock>> last_time;
     static std::map<std::string, int64_t> last_frame;
-    static std::map<std::string, std::string> title_base;
     const auto& tag = window.tag();
     if (window.frame_count() == 0) {
-        title_base[tag] = window.title();
         last_frame[tag] = 0;
         last_time[tag] = std::chrono::high_resolution_clock::now();
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -91,7 +89,7 @@ void frame(glapp::window& window)
         last_frame[tag] = window.frame_count();
 
         // Show status on tile bar
-        title << title_base[tag].c_str() << " - ";
+        title << window.title_original().c_str() << " - ";
         title << window.framebuffer_size().width() << " x " << window.framebuffer_size().height() << " | ";
         title << std::fixed << std::setprecision(2) << fps << " fps | ";
         title << std::fixed << std::setprecision(2) << (1000.0 / fps) << " ms";

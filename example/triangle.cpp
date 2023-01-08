@@ -9,8 +9,6 @@
 
 #include "glapp.hpp"
 
-constexpr const char* k_app_name = "triangle";
-
 void frame(glapp::window& window);
 void key(glapp::window& window, const std::string& key_name, const glapp::key_state& state, const glapp::modifier& modifier);
 
@@ -24,7 +22,7 @@ int main()
                              .set_opengl_profile(glapp::opengl_profile::core);
 
     // Create window and setup callbacks
-    auto w = app->add_window(640, 640, k_app_name, options);
+    auto w = app->add_window(640, 640, "triangle", options);
     w->on_frame(frame);
     w->on_key(key);
     // w->set_swap_interval(1);
@@ -81,7 +79,7 @@ void frame(glapp::window& window)
         last_frame = window.frame_count();
 
         // Show status on tile bar
-        title << k_app_name << " - ";
+        title << window.title_original() << " - ";
         title << window.framebuffer_size().width() << " x " << window.framebuffer_size().height() << " | ";
         title << std::fixed << std::setprecision(2) << fps << " fps | ";
         title << std::fixed << std::setprecision(2) << (1000.0 / fps) << " ms";

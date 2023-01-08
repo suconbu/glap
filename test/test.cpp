@@ -21,6 +21,7 @@ TEST_F(GlapTest, Basic)
     EXPECT_STREQ(w->title().c_str(), "Hello glapp");
     w->set_title(u8"こんにちはglap");
     EXPECT_STREQ(w->title().c_str(), u8"こんにちはglap");
+    EXPECT_STREQ(w->title_original().c_str(), "Hello glapp");
     EXPECT_NE(w->glfw_handle(), nullptr);
     EXPECT_EQ(w->tag().length(), 0);
     w->set_tag("tag");

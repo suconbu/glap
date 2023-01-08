@@ -733,6 +733,7 @@ class window : internal::noncopyable {
 private:
     std::shared_ptr<internal::glfw_window_handle> handle_;
     std::string title_;
+    std::string title_original_;
     std::string tag_;
     int32_t swap_interval_ = 0;
     int32_t last_swap_interval_ = INT32_MAX;
@@ -1078,6 +1079,7 @@ public:
         }
     }
     const std::string& title() const { return title_; }
+    const std::string& title_original() const { return title_original_; }
 
     void set_swap_interval(int32_t interval)
     {
@@ -1251,6 +1253,7 @@ public:
 private:
     window(int32_t width, int32_t height, const char* title, const std::shared_ptr<glapp::monitor> monitor, const glapp::window_options& options)
         : title_(internal::or_empty(title))
+        , title_original_(title_)
     {
         glapp::window_options actual_options = options;
         GLFWwindow* glfw_window = nullptr;
