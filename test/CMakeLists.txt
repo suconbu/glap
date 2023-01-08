@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.11)
-
 project(test)
 
 enable_testing()
@@ -22,7 +20,6 @@ endif()
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/test.cpp)
 
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_11)
 target_link_libraries(${PROJECT_NAME} PRIVATE gtest_main glapp)
 
 include(GoogleTest)

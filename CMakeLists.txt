@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.14)
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(GLAPP_STANDALONE TRUE)
@@ -12,9 +12,6 @@ project(glapp CXX)
 add_library(${PROJECT_NAME} INTERFACE)
 
 target_link_libraries(${PROJECT_NAME} INTERFACE glfw)
-
-target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_11)
-set_target_properties(${PROJECT_NAME} PROPERTIES CXX_EXTENSIONS OFF)
 
 add_subdirectory(include)
 if(GLAPP_BUILD_EXAMPLES)
