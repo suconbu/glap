@@ -1152,7 +1152,15 @@ public:
         static thread_local std::string str;
         str.clear();
         if (handle_) {
-            str = glfwGetClipboardString(handle_->get());
+            // Workaround for when OpenClipboard failures
+            for (int32_t i = 3; i > 0; --i) {
+                auto ptr = glfwGetClipboardString(handle_->get());
+                if (ptr != nullptr) {
+                    str = ptr;
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
         }
         return str;
     }
