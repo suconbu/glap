@@ -44,13 +44,14 @@ TEST_F(GlapTest, Get)
     auto app = glapp::get();
     auto w = app->add_window(640, 480, nullptr);
     w->on_frame([&app](glapp::window& window) {
-        EXPECT_TRUE(app->has_extension("GL_ARB_gl_spirv"));
-        EXPECT_FALSE(app->has_extension("GL_SPIR_V_BINARY_ARB"));
-        EXPECT_FALSE(app->has_extension("glSpecializeShaderARB"));
+        EXPECT_TRUE(window.has_extension("GL_ARB_multisample"));
+        EXPECT_FALSE(window.has_extension("???"));
 
-        EXPECT_EQ(app->get_proc("GL_ARB_gl_spirv"), nullptr);
-        EXPECT_EQ(app->get_proc("GL_SPIR_V_BINARY_ARB"), nullptr);
-        EXPECT_NE(app->get_proc("glSpecializeShaderARB"), nullptr);
+        EXPECT_NE(window.get_proc("glSampleCoverageARB"), nullptr);
+#if !defined(__linux__)
+        // Because glXGetProcAddress returns always not NULL
+        EXPECT_EQ(window.get_proc("???"), nullptr);
+#endif
 
         EXPECT_LT(app->get_time(), 50.0);
         app->set_time(100.0);

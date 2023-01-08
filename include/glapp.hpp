@@ -1181,6 +1181,22 @@ public:
         return result;
     }
 
+    // ATTENTION: This function must be called inside 'on_frame' callback
+    // Returns whether the specified extension is available
+    // e.g. GL_ARB_gl_spirv
+    bool has_extension(const char* extension)
+    {
+        return glfwExtensionSupported(extension) == GLFW_TRUE;
+    }
+
+    // ATTENTION: This function must be called inside 'on_frame' callback
+    // Returns the functor of specified function
+    // e.g. glSpecializeShaderARB
+    void (*get_proc(const char* procname))()
+    {
+        return glfwGetProcAddress(procname);
+    }
+
     // clang-format off
 
     // (glapp::window& window)
@@ -1545,7 +1561,6 @@ private:
 
     void draw()
     {
-        // Require the std::weak_ptr::lock to be atomic operation (It is supported since C++14)
         if (handle_) {
             glfwMakeContextCurrent(handle_->get());
             frame_event(*this);
@@ -1720,22 +1735,6 @@ public:
         for (auto&& window : windows_) {
             window->close();
         }
-    }
-
-    // Returns whether the specified extension is available
-    // e.g. GL_ARB_gl_spirv
-    bool has_extension(const char* extension)
-    {
-        bool supported = glfwExtensionSupported(extension) == GLFW_TRUE;
-        return supported;
-    }
-
-    // Returns the functor of specified function
-    // e.g. glSpecializeShaderARB
-    std::function<void(void)> get_proc(const char* procname)
-    {
-        auto proc = glfwGetProcAddress(procname);
-        return proc;
     }
 
     // Resets the time returned by `get_time` to zero
